@@ -1,0 +1,128 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  role         String // SALES_EXEC | SALES_HEAD
+  handoffs     Handoff[]
+  leads        Lead[]
+}
+
+model Lead {
+  id              String         @id @default(cuid())
+  leadCode        String         @unique
+  name            String
+  phone           String         @default("")
+  email           String?
+  source          String // PORTAL | SOCIAL | WEBSITE | HOARDING
+  project         String?
+  wants           String?
+  budgetBand      String?
+  language        String         @default("en")
+  consent         Boolean        @default(false)
+  optedOut        Boolean        @default(false)
+  status          String         @default("NEW") // NEW | ENGAGED | BOOKED | VISITED | NO_SHOW | HANDED_OFF
+  duplicateOfId   String?
+  duplicateNote   String?
+  assignedToId    String?
+  assignedTo      User?          @relation(fields: [assignedToId], references: [id])
+  firstResponseAt DateTime?
+  createdAt       DateTime       @default(now())
+  conversations   Conversation[]
+  bookings        Booking[]
+  handoffs        Handoff[]
+  outbox          Outbox[]
+}
+
+model Conversation {
+  id        String    @id @default(cuid())
+  leadId    String
+  lead      Lead      @relation(fields: [leadId], references: [id])
+  flagged   Boolean   @default(false)
+  flagNote  String?
+  createdAt DateTime  @default(now())
+  messages  Message[]
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  role           String // BUYER | ASSISTANT | SYSTEM
+  content        String
+  createdAt      DateTime     @default(now())
+}
+
+model Slot {
+  id          String    @id @default(cuid())
+  project     String
+  startsAt    DateTime
+  capacity    Int       @default(3)
+  bookedCount Int       @default(0)
+  bookings    Booking[]
+
+  @@unique([project, startsAt])
+}
+
+model Booking {
+  id        String   @id @default(cuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id])
+  slotId    String
+  slot      Slot     @relation(fields: [slotId], references: [id])
+  status    String   @default("BOOKED") // BOOKED | VISITED | NO_SHOW | CANCELLED
+  createdAt DateTime @default(now())
+
+  @@unique([leadId, slotId])
+}
+
+model Handoff {
+  id        String   @id @default(cuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id])
+  toUserId  String?
+  toUser    User?    @relation(fields: [toUserId], references: [id])
+  reason    String
+  summary   String
+  claimed   Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model FactSheet {
+  id        String   @id @default(cuid())
+  project   String   @unique
+  title     String
+  rera      String
+  address   String
+  mapsUrl   String
+  content   String
+  updatedAt DateTime @updatedAt
+}
+
+model Outbox {
+  id        String    @id @default(cuid())
+  leadId    String
+  lead      Lead      @relation(fields: [leadId], references: [id])
+  bookingId String?
+  channel   String    @default("SMS_MOCK")
+  type      String // CONFIRMATION | REMINDER_1D | REMINDER_2H
+  body      String
+  sendAt    DateTime
+  sentAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+
+model SourceSpend {
+  id           String @id @default(cuid())
+  source       String @unique
+  monthlySpend Int
+}
