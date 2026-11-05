@@ -1,8 +1,8 @@
 # Technical Design Document
 ## AI lead-response and site-visit booking assistant for a residential developer
 
-**GitHub:** <PASTE_YOUR_REPO_URL_HERE>
-**Live app:** <PASTE_YOUR_VERCEL_URL_HERE>
+**GitHub:** https://github.com/Punitjain2/lead-assist
+**Live app:** https://lead-assist-i48z.vercel.app
 **Demo logins:** see deployment.md
 
 ---
@@ -21,8 +21,12 @@ built as well.
 ## 2. Architecture and why
 
 Next.js 14 (App Router, TypeScript) serving both the UI and the API, Prisma over SQLite
-locally and Postgres in production, and the Anthropic Claude API with tool use for the
-agent. One repo, one deploy, no separate backend service.
+locally and Postgres in production, and an LLM with tool use for the
+agent (Anthropic or any OpenAI-compatible provider; the live deployment runs Sarvam). One repo, one deploy, no separate backend service.
+
+![Figure 1. One Next.js deployment; the AI provider and the database are both swappable by environment variables.](docs/img/fig-arch.png)
+
+*Figure 1. One Next.js deployment; the AI provider and the database are both swappable by environment variables.*
 
 Why this shape: the product is small and chat-centred, so a monolith with server
 components removes a whole class of API plumbing; Prisma gives a typed data layer and a
@@ -60,6 +64,10 @@ Key choices:
 
 ## 4. The booking hard part: no double booking
 
+![Figure 2. The whole concurrency story is one conditional UPDATE; both branches are honest to the buyer.](docs/img/fig-booking.png)
+
+*Figure 2. The whole concurrency story is one conditional UPDATE; both branches are honest to the buyer.*
+
 The capacity check and the seat claim are a single atomic statement:
 
 ```sql
@@ -93,6 +101,9 @@ deliberate budget alternative here: it is OpenAI-compatible with tool calling an
 trained for 22 Indian languages plus English, which fits a Gujarati- and Hindi-speaking
 Ahmedabad buyer base. Because both drivers call the same executor, the booking
 atomicity, consent rules and handoff behaviour cannot drift between providers.
+Reasoning-heavy models can spend the whole token budget thinking and return an empty
+answer; the compatible driver strips think-tags, retries once forcing a plain text
+answer, and only then falls back to a handoff.
 
 The agent runs four tools in a server-side loop (max 6 turns):
 
@@ -142,6 +153,14 @@ so the direction is quiet and editorial rather than app-like: a warm paper backg
 for headings and the system sans for everything else. No gradients, no decoration
 without a job.
 
+![Figure 3. Landing: both projects with RERA numbers and the DPDP consent line before any chat starts.](docs/img/fig-landing.png)
+
+*Figure 3. Landing: both projects with RERA numbers and the DPDP consent line before any chat starts.*
+
+![Figure 4. Live chat on the deployed app: the price answer quotes the fact sheet and defers the final price to a sales executive.](docs/img/fig-chat.png)
+
+*Figure 4. Live chat on the deployed app: the price answer quotes the fact sheet and defers the final price to a sales executive.*
+
 - **Chat** is the one bold element. Assistant replies are typeset as text with a thin
   pine rule rather than bubbles, which reads calm and premium on a phone; the buyer's
   words sit in solid ink blocks. The RERA numbers, the registered-details disclaimer
@@ -150,9 +169,20 @@ without a job.
 - **Lead list** answers the telecaller's first question (who is new, from where, has
   anyone replied) in one row each: source chip, status chip, first-response time with
   "never" in red, amber duplicate badge with the original lead on hover.
+
+![Figure 5. Lead list as the sales head sees it: every source in one place, status chips, first-response time, red "never".](docs/img/fig-leads.png)
+
+*Figure 5. Lead list as the sales head sees it: every source in one place, status chips, first-response time, red "never".*
+- **Flagged chats** gives the sales head the brief's daily review in one screen:
+  every conversation the assistant flagged, with the reason (discount asked, fact
+  missing, person requested) and the last exchange, newest first.
 - **Dashboard** leads with the four numbers the Director is buying: median first
   response, percent unreached in 48 hours, visits with show-up rate, cost per visit.
   The per-source table uses small inline bars instead of a chart library.
+
+![Figure 6. Source dashboard: the four numbers the Director is buying, then cost per visit by source.](docs/img/fig-dashboard.png)
+
+*Figure 6. Source dashboard: the four numbers the Director is buying, then cost per visit by source.*
 - Every screen has loading (server-rendered), empty ("No handoffs yet. They appear
   when...") and error states; the chat has retry-with-your-text-preserved.
 - Mobile first: the chat is a full-height single column; the staff sidebar collapses to

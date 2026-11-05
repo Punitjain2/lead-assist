@@ -2,10 +2,10 @@
 
 ## Run locally, step by step
 
-Requires Node 18+ and an Anthropic API key.
+Requires Node 18+. An AI key is optional: a keyless demo mode is described below.
 
 ```bash
-git clone <YOUR_GITHUB_URL>
+git clone https://github.com/Punitjain2/lead-assist
 cd lead-assist
 npm install
 cp .env.example .env        # then open .env and fill the values below
@@ -33,6 +33,9 @@ mistakes it for the AI. Set `MOCK_AI=""` and add a real key for the full assista
 including free-form questions and Hindi/Gujarati.
 
 ## How it is deployed
+
+Live at https://lead-assist-i48z.vercel.app : Vercel (app) + Neon Postgres (database),
+with Sarvam (`sarvam-105b`) as the AI provider via the option-C variables below.
 
 - App on Vercel (Next.js 14, App Router). Connect the GitHub repo, framework auto-detected.
 - Database: the repo ships with SQLite for zero-friction local review. For the hosted
